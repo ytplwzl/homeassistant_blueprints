@@ -1,0 +1,55 @@
+blueprint:
+  name: Debug Light Control
+  description: 基于二进制传感器和按钮控制灯光的蓝图。
+  domain: automation
+  input:
+    sensor_entity:
+      name: 传感器实体
+      description: 用于触发自动化并检查最后状态改变时间的二进制传感器。
+      selector:
+        entity:
+          domain: binary_sensor
+    button_entity:
+      name: 按钮实体
+      description: 用于触发关闭灯光的按钮。
+      selector:
+        entity:
+          domain: binary_sensor
+    light_entity:
+      name: 灯光实体
+      description: 要控制的灯光。
+      selector:
+        entity:
+          domain: light
+
+trigger:
+  - platform: state
+    entity_id: !input sensor_entity
+    id: sensor_trigger
+  - platform: state
+    entity_id: !input button_entity
+    from: 'off'
+    to: 'on'
+    id: button_trigger
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: sensor_trigger
+          - condition: state
+            entity_id: !input light_entity
+            state: 'off'
+          - condition: template
+            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 10 }}"
+        sequence:
+          - service: light.turn_on
+            entity_id: !input light_entity
+      - conditions:
+          - condition: trigger
+            id: button_trigger
+        sequence:
+          - service: light.turn_off
+            entity_id: !input light_entity
