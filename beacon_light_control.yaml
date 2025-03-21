@@ -21,6 +21,7 @@ blueprint:
       selector:
         entity:
           domain: light
+          multiple: true  # 允许选择多个灯光实体
 
 trigger:
   - platform: state
