@@ -1,56 +1,59 @@
 blueprint:
-  name: Beacon Light Control
-  description: 人物存在感知控制灯光的蓝图。
+  name: 存在感知灯控蓝图
+  description: 通过人体存在传感器和物理按钮实现智能灯光控制
   domain: automation
   input:
     sensor_entity:
-      name: 传感器实体
-      description: 用于触发自动化并检查最后状态改变时间的二进制传感器，本案例需要一个每秒变化一次的二进制信号作为存在感知。
+      name: 存在传感器
+      description: 持续监测人体存在的二进制传感器（需要每秒产生状态变化的信号）
       selector:
         entity:
-          domain: binary_sensor
+          domain: binary_sensor  # 限定选择二进制传感器类型
     button_entity:
-      name: 按钮实体
-      description: 用于触发关闭灯光的按钮。
+      name: 物理按钮
+      description: 用于手动关闭灯光的无线开关/实体按钮
       selector:
         entity:
-          domain: binary_sensor
+          domain: binary_sensor  # 支持各种类型的无线开关
     light_entity:
-      name: 灯光实体
-      description: 要控制的灯光，允许选择多个实体。
+      name: 被控灯具
+      description: 需要智能控制的照明设备（可多选）
       selector:
         entity:
           domain: light
-          multiple: true  # 允许选择多个灯光实体
+          multiple: true  # 允许同时控制多个灯具
 
+# 双模式触发机制
 trigger:
   - platform: state
-    entity_id: !input sensor_entity
+    entity_id: !input sensor_entity  # 存在传感器状态变化触发
     id: sensor_trigger
   - platform: state
-    entity_id: !input button_entity
-    from: 'off'
+    entity_id: !input button_entity  # 物理按钮按下触发
+    from: 'off'  # 状态从关变为开时响应
     to: 'on'
     id: button_trigger
 
-condition: []
-
 action:
   - choose:
+      # 存在感知开灯逻辑
       - conditions:
           - condition: trigger
-            id: sensor_trigger
+            id: sensor_trigger  # 由传感器触发
           - condition: state
             entity_id: !input light_entity
-            state: 'off'
+            state: 'off'  # 确保灯具当前为关闭状态
           - condition: template
+            # 状态持续10秒以上防误触（需根据传感器特性调整时长）
             value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 10 }}"
         sequence:
-          - service: light.turn_on
+          - service: light.turn_on  # 满足条件时开启灯具
             entity_id: !input light_entity
+      
+      # 物理按钮关灯逻辑
       - conditions:
           - condition: trigger
-            id: button_trigger
+            id: button_trigger  # 由按钮触发
         sequence:
-          - service: light.turn_off
+          - service: light.turn_off  # 立即关闭所有绑定灯具
             entity_id: !input light_entity
