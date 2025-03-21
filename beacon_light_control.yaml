@@ -1,11 +1,11 @@
 blueprint:
   name: Beacon Light Control
-  description: 基于二进制传感器和按钮控制灯光的蓝图。
+  description: 人物存在感知控制灯光的蓝图。
   domain: automation
   input:
     sensor_entity:
       name: 传感器实体
-      description: 用于触发自动化并检查最后状态改变时间的二进制传感器。
+      description: 用于触发自动化并检查最后状态改变时间的二进制传感器，本案例需要一个每秒变化一次的二进制信号作为存在感知。
       selector:
         entity:
           domain: binary_sensor
@@ -17,7 +17,7 @@ blueprint:
           domain: binary_sensor
     light_entity:
       name: 灯光实体
-      description: 要控制的灯光。
+      description: 要控制的灯光，允许选择多个实体。
       selector:
         entity:
           domain: light
