@@ -1,5 +1,5 @@
 blueprint:
-  name: Debug Light Control
+  name: Beacon Light Control
   description: 基于二进制传感器和按钮控制灯光的蓝图。
   domain: automation
   input:
