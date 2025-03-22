@@ -45,7 +45,7 @@ action:
             state: 'off'  # 确保灯具当前为关闭状态
           - condition: template
             # 状态持续10秒以上防误触（需根据传感器特性调整时长）
-            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 10 }}"
+            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 30 }}"
         sequence:
           - service: light.turn_on  # 满足条件时开启灯具
             entity_id: !input light_entity
