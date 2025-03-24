@@ -1,59 +1,83 @@
 blueprint:
   name: 存在感知灯控蓝图
-  description: 通过人体存在传感器和物理按钮实现智能灯光控制
+  description: 通过人体存在传感器和物理按钮实现智能灯光控制，基于太阳高度角
   domain: automation
   input:
     sensor_entity:
       name: 存在传感器
-      description: 持续监测人体存在的二进制传感器（需要每秒产生状态变化的信号）
+      description: 持续监测人体存在的二进制传感器
       selector:
         entity:
-          domain: binary_sensor  # 限定选择二进制传感器类型
+          domain: binary_sensor
     button_entity:
       name: 物理按钮
       description: 用于手动关闭灯光的无线开关/实体按钮
       selector:
         entity:
-          domain: binary_sensor  # 支持各种类型的无线开关
+          domain: binary_sensor
     light_entity:
       name: 被控灯具
       description: 需要智能控制的照明设备（可多选）
       selector:
         entity:
           domain: light
-          multiple: true  # 允许同时控制多个灯具
+          multiple: true
+    sunset_elevation:
+      name: 日落高度角
+      description: 日落后允许开灯的太阳高度角（负值表示地平线以下）
+      default: -6  # 傍晚6度以下，约日落后30分钟
+      selector:
+        number:
+          min: -90
+          max: 90
+          unit_of_measurement: degrees
+    sunrise_elevation:
+      name: 日出高度角
+      description: 日出前允许开灯的太阳高度角（负值表示地平线以下）
+      default: -6  # 早晨6度以下，约日出前30分钟
+      selector:
+        number:
+          min: -90
+          max: 90
+          unit_of_measurement: degrees
 
-# 双模式触发机制
 trigger:
   - platform: state
-    entity_id: !input sensor_entity  # 存在传感器状态变化触发
+    entity_id: !input sensor_entity
     id: sensor_trigger
   - platform: state
-    entity_id: !input button_entity  # 物理按钮按下触发
-    from: 'off'  # 状态从关变为开时响应
+    entity_id: !input button_entity
+    from: 'off'
     to: 'on'
     id: button_trigger
 
+variables:
+  sunset_elevation: !input sunset_elevation
+  sunrise_elevation: !input sunrise_elevation
+  current_elevation: "{{ state_attr('sun.sun', 'elevation') }}"
+  target_elevation: "{{ sunset_elevation if now().hour >= 12 else sunrise_elevation }}"
+
 action:
   - choose:
-      # 存在感知开灯逻辑
+      # 存在感知开灯逻辑（加入太阳高度角控制）
       - conditions:
           - condition: trigger
-            id: sensor_trigger  # 由传感器触发
+            id: sensor_trigger
           - condition: state
             entity_id: !input light_entity
-            state: 'off'  # 确保灯具当前为关闭状态
+            state: 'off'
           - condition: template
-            # 状态持续10秒以上防误触（需根据传感器特性调整时长）
             value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 30 }}"
+          - condition: template
+            value_template: "{{ current_elevation <= target_elevation }}"
         sequence:
-          - service: light.turn_on  # 满足条件时开启灯具
+          - service: light.turn_on
             entity_id: !input light_entity
       
-      # 物理按钮关灯逻辑
+      # 物理按钮关灯逻辑（不受高度角限制）
       - conditions:
           - condition: trigger
-            id: button_trigger  # 由按钮触发
+            id: button_trigger
         sequence:
-          - service: light.turn_off  # 立即关闭所有绑定灯具
+          - service: light.turn_off
             entity_id: !input light_entity
