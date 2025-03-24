@@ -1,6 +1,6 @@
 blueprint:
   name: 存在感知灯控蓝图
-  description: 通过人体存在传感器和物理按钮实现智能灯光控制，基于太阳高度角
+  description: 通过人体存在传感器和物理按钮实现智能灯光控制，基于日出日落时间偏移
   domain: automation
   input:
     sensor_entity:
@@ -22,24 +22,26 @@ blueprint:
         entity:
           domain: light
           multiple: true
-    sunset_elevation:
-      name: 日落高度角
-      description: 日落后允许开灯的太阳高度角（负值表示地平线以下）
-      default: -6  # 傍晚6度以下，约日落后30分钟
+    sunset_offset:
+      name: 日落后偏移时间
+      description: 日落后多少小时允许开灯（正值表示日落后，负值表示日落前）
+      default: 0.5  # 默认日落后30分钟
       selector:
         number:
-          min: -90
-          max: 90
-          unit_of_measurement: degrees
-    sunrise_elevation:
-      name: 日出高度角
-      description: 日出前允许开灯的太阳高度角（负值表示地平线以下）
-      default: -6  # 早晨6度以下，约日出前30分钟
+          min: -12
+          max: 12
+          step: 0.5
+          unit_of_measurement: hours
+    sunrise_offset:
+      name: 日出前偏移时间
+      description: 日出前多少小时允许开灯（正值表示日出后，负值表示日出前）
+      default: -0.5  # 默认日出前30分钟
       selector:
         number:
-          min: -90
-          max: 90
-          unit_of_measurement: degrees
+          min: -12
+          max: 12
+          step: 0.5
+          unit_of_measurement: hours
 
 trigger:
   - platform: state
@@ -52,14 +54,18 @@ trigger:
     id: button_trigger
 
 variables:
-  sunset_elevation: !input sunset_elevation
-  sunrise_elevation: !input sunrise_elevation
-  current_elevation: "{{ state_attr('sun.sun', 'elevation') }}"
-  target_elevation: "{{ sunset_elevation if now().hour >= 12 else sunrise_elevation }}"
+  sunset_offset: !input sunset_offset
+  sunrise_offset: !input sunrise_offset
+  sunrise_time: "{{ as_timestamp(state_attr('sun.sun', 'next_rising')) }}"
+  sunset_time: "{{ as_timestamp(state_attr('sun.sun', 'next_setting')) }}"
+  # 计算实际允许开灯的时间范围
+  sunset_target_time: "{{ sunset_time + (sunset_offset * 3600) }}"
+  sunrise_target_time: "{{ sunrise_time + (sunrise_offset * 3600) }}"
+  current_time: "{{ now().timestamp() }}"
 
 action:
   - choose:
-      # 存在感知开灯逻辑（加入太阳高度角控制）
+      # 存在感知开灯逻辑（基于时间偏移控制）
       - conditions:
           - condition: trigger
             id: sensor_trigger
@@ -69,12 +75,17 @@ action:
           - condition: template
             value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 30 }}"
           - condition: template
-            value_template: "{{ current_elevation <= target_elevation }}"
+            value_template: >
+              {% if current_time > sunset_time %}
+                {{ current_time >= sunset_target_time }}
+              {% else %}
+                {{ current_time <= sunrise_target_time }}
+              {% endif %}
         sequence:
           - service: light.turn_on
             entity_id: !input light_entity
       
-      # 物理按钮关灯逻辑（不受高度角限制）
+      # 物理按钮关灯逻辑（不受时间限制）
       - conditions:
           - condition: trigger
             id: button_trigger
