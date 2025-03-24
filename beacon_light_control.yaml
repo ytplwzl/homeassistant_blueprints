@@ -73,7 +73,8 @@ action:
             entity_id: !input light_entity
             state: 'off'
           - condition: template
-            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 30 }}"
+            # 下次触发的延时在这里配置，用来防止误触发。
+            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 60 }}"
           - condition: template
             value_template: >
               {% if current_time > sunset_time %}
