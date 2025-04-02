@@ -58,10 +58,12 @@ variables:
   sunrise_elevation: !input sunrise_elevation
   current_elevation: "{{ state_attr('sun.sun', 'elevation') }}"
   target_elevation: "{{ sunset_elevation if now().hour >= 12 else sunrise_elevation }}"
+  last_triggered: "{{ (states[automation_entity_id].last_triggered if automation_entity_id in states else now()).timestamp() }}"
+  time_since_last_trigger: "{{ (now().timestamp() - last_triggered) | float }}"
 
 action:
   - choose:
-      # 存在感知开灯逻辑（移除时间延迟条件）
+      # 存在感知开灯逻辑，添加30秒防抖
       - conditions:
           - condition: trigger
             id: sensor_trigger
@@ -70,6 +72,8 @@ action:
             state: 'off'
           - condition: template
             value_template: "{{ current_elevation <= target_elevation }}"
+          - condition: template
+            value_template: "{{ time_since_last_trigger > 30 }}"
         sequence:
           - service: light.turn_on
             entity_id: !input light_entity
