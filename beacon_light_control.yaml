@@ -72,7 +72,8 @@ action:
           - condition: template
             value_template: "{{ current_elevation <= target_elevation }}"
           - condition: template
-            value_template: "{{ sensor_last_changed is not none and (now() - sensor_last_changed).total_seconds() > 30 }}"
+            #value_template: "{{ sensor_last_changed is not none and (now() - sensor_last_changed).total_seconds() > 30 }}"
+            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 60 }}"
         sequence:
           - service: light.turn_on
             entity_id: !input light_entity
