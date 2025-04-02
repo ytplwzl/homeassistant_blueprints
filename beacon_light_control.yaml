@@ -1,6 +1,6 @@
 blueprint:
   name: 存在感知灯控蓝图
-  description: 通过人体存在传感器和物理按钮实现智能灯光控制，基于太阳高度角，触发间隔限制
+  description: 通过人体存在传感器和物理按钮实现智能灯光控制，基于太阳高度角，传感器触发有间隔限制
   domain: automation
   input:
     sensor_entity:
@@ -58,13 +58,13 @@ variables:
   sunrise_elevation: !input sunrise_elevation
   current_elevation: "{{ state_attr('sun.sun', 'elevation') }}"
   target_elevation: "{{ sunset_elevation if now().hour >= 12 else sunrise_elevation }}"
-  # 添加变量跟踪上一次触发时间
+  # 跟踪上一次传感器触发时间，仅用于开灯逻辑
   last_trigger_time: "{{ states('input_datetime.last_beacon_trigger') if states('input_datetime.last_beacon_trigger') != 'unknown' else '1970-01-01 00:00:00' }}"
   time_since_last_trigger: "{{ (now() - as_timestamp(last_trigger_time)|timestamp_local).total_seconds() }}"
 
 action:
   - choose:
-      # 存在感知开灯逻辑（增加触发间隔检查）
+      # 存在感知开灯逻辑（包含触发间隔检查）
       - conditions:
           - condition: trigger
             id: sensor_trigger
@@ -85,7 +85,7 @@ action:
             target:
               entity_id: input_datetime.last_beacon_trigger
       
-      # 物理按钮关灯逻辑（保持不变）
+      # 物理按钮关灯逻辑（无时间限制）
       - conditions:
           - condition: trigger
             id: button_trigger
