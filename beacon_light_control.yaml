@@ -46,6 +46,8 @@ blueprint:
 trigger:
   - platform: state
     entity_id: !input sensor_entity
+    from: 'off'
+    to: 'on'
     id: sensor_trigger
   - platform: state
     entity_id: !input button_entity
