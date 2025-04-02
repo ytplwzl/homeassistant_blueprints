@@ -71,7 +71,7 @@ action:
           - condition: template
             value_template: "{{ current_elevation <= target_elevation }}"
           - condition: template
-            value_template: "{{ (now() - state_attr('light.' + (input('light_entity') | first), 'last_changed')).total_seconds() > 30 if state_attr('light.' + (input('light_entity') | first), 'last_changed') is not none else true }}"
+            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 10 }}"
         sequence:
           - service: light.turn_on
             entity_id: !input light_entity
