@@ -71,8 +71,9 @@ action:
   - choose:
       # 存在感知开灯逻辑（带60秒防抖）
       - conditions:
-          - condition: trigger
-            id: sensor_trigger
+          - condition: state
+            entity_id: !input sensor_entity
+            state: 'on'
           - condition: state
             entity_id: !input light_entity
             state: 'off'
