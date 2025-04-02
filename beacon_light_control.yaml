@@ -58,6 +58,7 @@ variables:
   sunrise_elevation: !input sunrise_elevation
   current_elevation: "{{ state_attr('sun.sun', 'elevation') | float }}"
   target_elevation: "{{ sunset_elevation if now().hour >= 12 else sunrise_elevation }}"
+  sensor_last_changed: "{{ state_attr(input('sensor_entity'), 'last_changed') }}"
 
 action:
   - choose:
@@ -70,8 +71,8 @@ action:
             state: 'off'
           - condition: template
             value_template: "{{ current_elevation <= target_elevation }}"
-          #- condition: template
-          #  value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 10 }}"
+          - condition: template
+            value_template: "{{ sensor_last_changed is not none and (now() - sensor_last_changed).total_seconds() > 30 }}"
         sequence:
           - service: light.turn_on
             entity_id: !input light_entity
