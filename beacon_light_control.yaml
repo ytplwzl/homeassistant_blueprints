@@ -25,7 +25,7 @@ blueprint:
     sunset_offset:
       name: 日落后偏移时间
       description: 日落后多少小时允许开灯（正值表示日落后，负值表示日落前）
-      default: 0.5  # 默认日落后30分钟
+      default: 0.5
       selector:
         number:
           min: -12
@@ -35,7 +35,7 @@ blueprint:
     sunrise_offset:
       name: 日出前偏移时间
       description: 日出前多少小时允许开灯（正值表示日出后，负值表示日出前）
-      default: -0.5  # 默认日出前30分钟
+      default: -0.5
       selector:
         number:
           min: -12
@@ -60,14 +60,16 @@ variables:
   sunrise_offset: !input sunrise_offset
   sunrise_time: "{{ as_timestamp(state_attr('sun.sun', 'next_rising')) }}"
   sunset_time: "{{ as_timestamp(state_attr('sun.sun', 'next_setting')) }}"
-  # 计算实际允许开灯的时间范围
   sunset_target_time: "{{ sunset_time + (sunset_offset * 3600) }}"
   sunrise_target_time: "{{ sunrise_time + (sunrise_offset * 3600) }}"
   current_time: "{{ now().timestamp() }}"
+  # 添加用于防抖的变量
+  last_trigger_time: "{{ state_attr('automation.' + automation_id, 'last_triggered') | default(0) }}"
+  time_since_last_trigger: "{{ (current_time - as_timestamp(last_trigger_time)) if last_trigger_time != 0 else 9999 }}"
 
 action:
   - choose:
-      # 存在感知开灯逻辑（基于时间偏移控制）
+      # 存在感知开灯逻辑（带60秒防抖）
       - conditions:
           - condition: trigger
             id: sensor_trigger
@@ -75,23 +77,21 @@ action:
             entity_id: !input light_entity
             state: 'off'
           - condition: template
-            # 下次触发的延时在这里配置，用来防止误触发。
-            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 60 }}"
+            value_template: "{{ current_time >= sunset_target_time or current_time <= sunrise_target_time }}"
           - condition: template
-            value_template: >
-              {% if current_time > sunset_time %}
-                {{ current_time >= sunset_target_time }}
-              {% else %}
-                {{ current_time <= sunrise_target_time }}
-              {% endif %}
+            value_template: "{{ time_since_last_trigger > 60 }}"
         sequence:
           - service: light.turn_on
-            entity_id: !input light_entity
-      
-      # 物理按钮关灯逻辑（不受时间限制）
+            target:
+              entity_id: !input light_entity
+
+      # 物理按钮关灯逻辑（带60秒防抖）
       - conditions:
           - condition: trigger
             id: button_trigger
+          - condition: template
+            value_template: "{{ time_since_last_trigger > 60 }}"
         sequence:
           - service: light.turn_off
-            entity_id: !input light_entity
+            target:
+              entity_id: !input light_entity
