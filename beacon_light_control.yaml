@@ -68,8 +68,8 @@ action:
           - condition: state
             entity_id: !input light_entity
             state: 'off'
-          - condition: template
-            value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 30 }}"
+          #- condition: template
+          #  value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 30 }}"
           - condition: template
             value_template: "{{ current_elevation <= target_elevation }}"
         sequence:
