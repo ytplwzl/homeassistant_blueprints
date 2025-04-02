@@ -1,6 +1,6 @@
 blueprint:
   name: 存在感知灯控蓝图
-  description: 通过人体存在传感器和物理按钮实现智能灯光控制，基于太阳高度角
+  description: 通过人体存在传感器和物理按钮实现智能灯光控制，基于太阳高度角，触发间隔限制
   domain: automation
   input:
     sensor_entity:
@@ -25,7 +25,7 @@ blueprint:
     sunset_elevation:
       name: 日落高度角
       description: 日落后允许开灯的太阳高度角（负值表示地平线以下）
-      default: -6  # 傍晚6度以下，约日落后30分钟
+      default: -6
       selector:
         number:
           min: -90
@@ -34,7 +34,7 @@ blueprint:
     sunrise_elevation:
       name: 日出高度角
       description: 日出前允许开灯的太阳高度角（负值表示地平线以下）
-      default: -6  # 早晨6度以下，约日出前30分钟
+      default: -6
       selector:
         number:
           min: -90
@@ -45,7 +45,7 @@ trigger:
   - platform: state
     entity_id: !input sensor_entity
     from: 'off'
-    to: 'on'    # 修改为从off变为on时触发
+    to: 'on'
     id: sensor_trigger
   - platform: state
     entity_id: !input button_entity
@@ -58,25 +58,34 @@ variables:
   sunrise_elevation: !input sunrise_elevation
   current_elevation: "{{ state_attr('sun.sun', 'elevation') }}"
   target_elevation: "{{ sunset_elevation if now().hour >= 12 else sunrise_elevation }}"
+  # 添加变量跟踪上一次触发时间
+  last_trigger_time: "{{ states('input_datetime.last_beacon_trigger') if states('input_datetime.last_beacon_trigger') != 'unknown' else '1970-01-01 00:00:00' }}"
+  time_since_last_trigger: "{{ (now() - as_timestamp(last_trigger_time)|timestamp_local).total_seconds() }}"
 
 action:
   - choose:
-      # 存在感知开灯逻辑（加入太阳高度角控制）
+      # 存在感知开灯逻辑（增加触发间隔检查）
       - conditions:
           - condition: trigger
             id: sensor_trigger
           - condition: state
             entity_id: !input light_entity
             state: 'off'
-          #- condition: template
-          #  value_template: "{{ (now() - trigger.from_state.last_changed).total_seconds() > 30 }}"
           - condition: template
             value_template: "{{ current_elevation <= target_elevation }}"
+          - condition: template
+            value_template: "{{ time_since_last_trigger > 30 }}"
         sequence:
           - service: light.turn_on
             entity_id: !input light_entity
+          # 更新上一次触发时间
+          - service: input_datetime.set_datetime
+            data:
+              datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+            target:
+              entity_id: input_datetime.last_beacon_trigger
       
-      # 物理按钮关灯逻辑（不受高度角限制）
+      # 物理按钮关灯逻辑（保持不变）
       - conditions:
           - condition: trigger
             id: button_trigger
