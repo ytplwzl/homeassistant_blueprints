@@ -76,6 +76,12 @@ action:
         sequence:
           - service: light.turn_on
             entity_id: !input light_entity
+          - service: system_log.write
+            data:
+              message: "Debug: Sensor last changed: {{ sensor_last_changed }}, Time diff: {{ (now() - sensor_last_changed).total_seconds() if sensor_last_changed is not none else 'N/A' }}"
+              level: info
+          - service: light.turn_on
+            entity_id: !input light_entity
       
       # 物理按钮关灯逻辑
       - conditions:
@@ -84,11 +90,5 @@ action:
         sequence:
           - service: light.turn_off
             entity_id: !input light_entity
-sequence:
-  - service: system_log.write
-    data:
-      message: "Debug: Sensor last changed: {{ sensor_last_changed }}, Time diff: {{ (now() - sensor_last_changed).total_seconds() if sensor_last_changed is not none else 'N/A' }}"
-      level: info
-  - service: light.turn_on
-    entity_id: !input light_entity
+
     
