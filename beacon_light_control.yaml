@@ -58,7 +58,7 @@ variables:
   sunrise_elevation: !input sunrise_elevation
   current_elevation: "{{ state_attr('sun.sun', 'elevation') | float }}"
   target_elevation: "{{ sunset_elevation if now().hour >= 12 else sunrise_elevation }}"
-  sensor_last_changed: "{{ state_attr(input('sensor_entity'), 'last_changed') }}"
+  sensor_last_changed: "{{ state_attr('!input sensor_entity', 'last_changed') }}"
 
 action:
   - choose:
@@ -80,8 +80,6 @@ action:
             data:
               message: "Debug: Sensor last changed: {{ sensor_last_changed }}, Time diff: {{ (now() - sensor_last_changed).total_seconds() if sensor_last_changed is not none else 'N/A' }}"
               level: info
-          - service: light.turn_on
-            entity_id: !input light_entity
       
       # 物理按钮关灯逻辑
       - conditions:
@@ -90,5 +88,3 @@ action:
         sequence:
           - service: light.turn_off
             entity_id: !input light_entity
-
-    
